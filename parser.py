@@ -21,6 +21,10 @@ def extract_text(html: str) -> str:
     # convert HTML string into a BeautifulSoup object
     converted_html = BeautifulSoup(html, "html.parser")
 
+    # remove non-content HTML elements
+    for tag in converted_html(["script", "style", "noscript", "template"]):
+        tag.decompose()
+
     # extract the text content and remove the HTML tags using get_text
     # insert a space as a separator between words so they don't accidentally get joined
     # and remove surrounding whitespace using strip
@@ -39,6 +43,10 @@ def extract_important_text(html:str) -> str:
     """
     # convert HTML string into a BeautifulSoup object
     converted_html = BeautifulSoup(html, "html.parser")
+
+    # remove non-content HTML elements
+    for tag in converted_html(["script", "style", "noscript", "template"]):
+        tag.decompose()
 
     # create a set that contains the important tags in it
     important_tags = {"title", "h1", "h2", "h3", "b", "strong"}
@@ -105,7 +113,7 @@ def tokenize(text: str) -> list[str]:
 stemmer = PorterStemmer()
 def stem_tokens(tokens: list[str]) -> list[str]:
     """
-    Applies Porter Stemming to a list of tokens.
+    This function applies Porter Stemming to a list of tokens.
     """
     # list that will contain stemmed tokens
     stemmed_tokens = []
@@ -117,27 +125,69 @@ def stem_tokens(tokens: list[str]) -> list[str]:
 
     return stemmed_tokens
 
-if __name__ == "__main__":
-    html = """
-    <html>
-        <head><title>UCI Computer Science</title></head>
-        <body>
-            <h1>Welcome to UCI</h1>
-            <p>Computer Science is a popular major.</p>
-            <strong>Apply today!</strong>
-        </body>
-    </html>
+
+# The runtime complexity of this function is linear: O(n), where n is the number of tokens 
+# in the tokens list. Each token is examined exactly once, and dictionary lookup (when 
+# we do token in word_frequencies) and insertion are both O(1) on average.
+def compute_word_frequencies(tokens: list[str]) -> dict[str, int]:
     """
-    html2 = "<h1>Computer <strong>Science</strong></h1>"
+    This function takes in a list of strings and returns a dictionary of 
+    string keys and integer values. The keys are tokens and the integer values
+    are the frequency at which they appear in the list. We check to see if the
+    token is already in the dictionary, and if it is we add one to the frequency.
+    If it is not, we initialize that token as a key with a frequency value of 1.
+    """
+    # initialze an empty dict with a str key and an int value
+    word_frequencies: dict[str, int] = {}
+    for token in tokens:
+        # check if the token is already in the dictionary
+        # if it is then you can just add 1 to the value, but if not
+        # you need to initialize the key to 1
+        if (token in word_frequencies):
+            word_frequencies[token] += 1
+        else:
+            word_frequencies[token] = 1
 
-    text = "Running runners are running 123 times!"
+    return word_frequencies
 
-    tokens = tokenize(text)
-    stemmed_tokens = stem_tokens(tokens)
 
-    print(tokens)
-    print(stemmed_tokens)
-    
-    
-    print(extract_important_text(html))
-    print(extract_important_text(html2))
+
+def parse_document(filepath: str) -> dict[str, tuple[int, int]]:
+    """
+    This function parses a JSON webpage and returns a dictionary mapping
+    each stemmed token to its total frequency and important frequency.
+    """
+    # read the JSON document
+    document = read_document(filepath)
+
+    # get the HTML content
+    html = document["content"]
+
+    # extract all text and important text
+    all_text = extract_text(html)
+    important_text = extract_important_text(html)
+
+    # tokenize the regular and important text
+    all_tokens = tokenize(all_text)
+    important_tokens = tokenize(important_text)
+
+    # apply Porter stemming to both lists of tokens
+    stemmed_tokens = stem_tokens(all_tokens)
+    stemmed_important_tokens = stem_tokens(important_tokens)
+
+    # count the occurrences of each stemmed token
+    total_frequencies = compute_word_frequencies(stemmed_tokens)
+    important_frequencies = compute_word_frequencies(stemmed_important_tokens)
+
+    # dictionary mapping each stemmed token to its total and important frequency
+    term_frequencies: dict[str, tuple[int, int]] = {}
+
+    # loop through every token and its total frequency
+    for token, total_count in total_frequencies.items():
+        # get the important frequency, or 0 if the token is not important
+        important_count = important_frequencies.get(token, 0)
+
+        # store both frequencies as a tuple
+        term_frequencies[token] = (total_count, important_count)
+
+    return term_frequencies
