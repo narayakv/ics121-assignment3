@@ -42,11 +42,35 @@ def build_document_map(json_files: list[Path]) -> dict[int, str]:
 
     return doc_map
 
+
+def build_partial_index(inverted_index: dict[str, list[tuple[int, int, int]]], doc_id: int, 
+                        term_frequencies: dict[str, tuple[int, int]]):
+    """
+    This function adds one document's term frequenceis to the inverted index.
+    Each postinf contains (doc_id, total_frequency, important_frequency).
+    """
+    # loop through each term and its frequencies
+    for term, (total_count, important_count) in term_frequencies.items():
+        # create an empty postings list if the term is not in the index
+        if term not in inverted_index:
+            inverted_index[term] = []
+
+        # append the posting for this document
+        inverted_index[term].append((doc_id, total_count, important_count))
+
 if __name__ == "__main__":
-    json_files = get_json_files("developer/DEV")
+    inverted_index = {}
 
-    # test with only five documents
-    doc_map = build_document_map(json_files[:5])
+    build_partial_index(
+        inverted_index,
+        0,
+        {"comput": (2, 1), "scienc": (3, 1)}
+    )
 
-    for doc_id, url in doc_map.items():
-        print(doc_id, url)
+    build_partial_index(
+        inverted_index,
+        1,
+        {"comput": (1, 0), "uci": (2, 1)}
+    )
+
+    print(inverted_index)
