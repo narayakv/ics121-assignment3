@@ -152,13 +152,14 @@ def compute_word_frequencies(tokens: list[str]) -> dict[str, int]:
 
 
 
-def parse_document(filepath: str) -> dict[str, tuple[int, int]]:
+def parse_document(filepath: str, document: dict | None = None) -> dict[str, tuple[int, int]]:
     """
     This function parses a JSON webpage and returns a dictionary mapping
     each stemmed token to its total frequency and important frequency.
     """
-    # read the JSON document
-    document = read_document(filepath)
+    # only read the JSON file if the document wasn't already provided
+    if document is None:
+        document = read_document(filepath)
 
     # get the HTML content
     html = document["content"]

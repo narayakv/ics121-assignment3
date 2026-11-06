@@ -76,7 +76,7 @@ def build_index(dataset_path: str, output_dir: str, batch_size: int = 15000) -> 
     indexes are written to disk. 
     """
     # get all JSON files in sorted order
-    json_files = get_json_files(dataset_path)[:5]
+    json_files = get_json_files(dataset_path)
 
     # create the output directory if it doesn't exist
     output_path = Path(output_dir)
@@ -102,10 +102,14 @@ def build_index(dataset_path: str, output_dir: str, batch_size: int = 15000) -> 
         doc_map[doc_id] = url
 
         # parse the document to get its term frequencies
-        term_frequencies = parse_document(str(filepath))
+        term_frequencies = parse_document(str(filepath), document)
 
         # add the document's terms to the inverted index
         build_partial_index(inverted_index, doc_id, term_frequencies)
+
+        # display progress every 1000 documents
+        if (doc_id + 1) % 1000 == 0:
+            print(f"Processed {doc_id + 1}/{len(json_files)} documents", flush=True)
 
         # flush the inverted index after every batch
         # since doc_id starts at 0, add 1 and then modulo with
@@ -138,4 +142,4 @@ def build_index(dataset_path: str, output_dir: str, batch_size: int = 15000) -> 
         json.dump(doc_map, the_file)
 
 if __name__ == "__main__":
-    build_index("developer/DEV", "test_output", batch_size=2)
+    build_index("developer/DEV", "index_output", batch_size=15000)
