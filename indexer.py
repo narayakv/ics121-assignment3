@@ -44,7 +44,7 @@ def build_document_map(json_files: list[Path]) -> dict[int, str]:
 
 
 def build_partial_index(inverted_index: dict[str, list[tuple[int, int, int]]], doc_id: int, 
-                        term_frequencies: dict[str, tuple[int, int]]):
+                        term_frequencies: dict[str, tuple[int, int]]) -> None:
     """
     This function adds one document's term frequenceis to the inverted index.
     Each postinf contains (doc_id, total_frequency, important_frequency).
@@ -57,6 +57,37 @@ def build_partial_index(inverted_index: dict[str, list[tuple[int, int, int]]], d
 
         # append the posting for this document
         inverted_index[term].append((doc_id, total_count, important_count))
+
+
+def write_partial_index(inverted_index: dict[str, list[tuple[int, int, int]]], 
+                        filepath: str) -> None:
+    """
+    This function writes an inverted index to a partial index file, where
+    terms are sorted alphabetically and each posting contains
+    document ID, total frequency, and important frequency.
+    """                        
+    # open the output file for writing
+    with open(filepath, 'w', encoding="utf-8") as the_file:
+
+        # loop through the terms in sorted order
+        for term in sorted(inverted_index):
+
+            # get the postings list for the term
+            postings = inverted_index[term]
+
+            # convert each posting into doc_id:total_frequency:important_frequency fromat
+            posting_strings = []
+
+            for doc_id, total_count, important_count in postings:
+                posting_strings.append(
+                    f"{doc_id}:{total_count}:{important_count}"
+                )
+
+            # join the postings with commas
+            postings_text = ",".join(posting_strings)
+
+            # write the term an its postings on one line then move to the next
+            the_file.write(f"{term}\t{postings_text}\n")
 
 if __name__ == "__main__":
     inverted_index = {}
@@ -74,3 +105,8 @@ if __name__ == "__main__":
     )
 
     print(inverted_index)
+
+    write_partial_index(inverted_index, "test_partial.txt")
+
+    with open("test_partial.txt", "r", encoding="utf-8") as the_file:
+        print(the_file.read())
