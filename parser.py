@@ -1,5 +1,6 @@
 import json
 from bs4 import BeautifulSoup
+from nltk.stem import PorterStemmer
 
 
 def read_document(filepath: str) -> dict:
@@ -58,6 +59,64 @@ def extract_important_text(html:str) -> str:
     return " ".join(important_text)
 
 
+# The runtime complexity is linear: O(n), where n is the number of characters in the text.
+# Each character is examined exactly once while this function tokenizes the text.
+def tokenize(text: str) -> list[str]:
+    """
+    This function takes text as a string and returns a list
+    of strings called tokens. Each character of the text is examined and becomes either
+    part of a token or a separator. Tokens are strings of alphanumeric characters
+    that are separated by a separator. A separator is defined as any character that is not
+    alphanumeric; these characters will not be included in tokens, but they signal the end of a token.
+    Since a token is only added once a separator is hit, we need one last check to see if there are 
+    character(s) in the current list that have not been added to the tokens list because we reached the 
+    end of the text without a separator.
+    """
+    # initialize an empty list of tokens
+    tokens: list[str] = []
+    # initialize an empty list that represents the current token
+    current: list[str] = []
+
+    # loop through the text
+    for char in text:
+        # char is alphanumeric
+        if ('a' <= char.lower() <= 'z' or '0' <= char <= '9'):
+            # append a lowercase version of the char so tokens become independednt of capitalization
+            current.append(char.lower())
+        else:
+            # otherwise, the character is not part of the token and becomes a separator 
+            if (len(current) >= 1):
+                # append the current token but only if there is actually something in it
+                # join each single character string into a combined string separated by "",
+                # which is an empty string, so ['a', 'b'] becomes "ab"             
+                tokens.append("".join(current))
+            # reset current
+            current = []
+
+    # the end of the text has been reached
+    # there might still be a token left over if the last character is not a separator
+    if (len(current) >= 1):
+        tokens.append("".join(current))
+
+    return tokens
+
+
+# define a PorterStemmer object
+stemmer = PorterStemmer()
+def stem_tokens(tokens: list[str]) -> list[str]:
+    """
+    Applies Porter Stemming to a list of tokens.
+    """
+    # list that will contain stemmed tokens
+    stemmed_tokens = []
+
+    # loop through the tokens
+    for token in tokens:
+        # append the stemmed token to the stemmed_tokens list
+        stemmed_tokens.append(stemmer.stem(token))
+
+    return stemmed_tokens
+
 if __name__ == "__main__":
     html = """
     <html>
@@ -70,6 +129,14 @@ if __name__ == "__main__":
     </html>
     """
     html2 = "<h1>Computer <strong>Science</strong></h1>"
+
+    text = "Running runners are running 123 times!"
+
+    tokens = tokenize(text)
+    stemmed_tokens = stem_tokens(tokens)
+
+    print(tokens)
+    print(stemmed_tokens)
     
     
     print(extract_important_text(html))
