@@ -4,3 +4,6 @@ __pycache__/
 developer/
 *.zip
 developer.zip
+test_output/
+index_output/
+test_partial.txt

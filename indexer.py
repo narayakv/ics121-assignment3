@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from parser import parse_document, read_document
 from urllib.parse import urldefrag
@@ -19,28 +20,6 @@ def get_json_files(dataset_path: str) -> list[Path]:
     json_files.sort()
 
     return json_files
-
-
-def build_document_map(json_files: list[Path]) -> dict[int, str]:
-    """
-    This function assigns each JSON document a unique integer ID and
-    returns a dictionary mapping document IDs to URLs.
-    """
-    # dictionary mapping document IDs to URLs
-    doc_map: dict[int, str] = {}
-
-    # loop through each JSON file and assign a doc ID
-    for doc_id, filepath in enumerate(json_files):
-        # read the JSON document
-        document = read_document(str(filepath))
-
-        # extract the URL and remove any fragments
-        url = urldefrag(document["url"]).url
-
-        # associate the document ID iwth its URL
-        doc_map[doc_id] = url
-
-    return doc_map
 
 
 def build_partial_index(inverted_index: dict[str, list[tuple[int, int, int]]], doc_id: int, 
@@ -89,24 +68,74 @@ def write_partial_index(inverted_index: dict[str, list[tuple[int, int, int]]],
             # write the term an its postings on one line then move to the next
             the_file.write(f"{term}\t{postings_text}\n")
 
-if __name__ == "__main__":
+
+
+def build_index(dataset_path: str, output_dir: str, batch_size: int = 15000) -> None:
+    """
+    This function builds the inverted index by processing documents in batches. Partial
+    indexes are written to disk. 
+    """
+    # get all JSON files in sorted order
+    json_files = get_json_files(dataset_path)[:5]
+
+    # create the output directory if it doesn't exist
+    output_path = Path(output_dir)
+    # parents=True creates any missing parent directories too
+    # exist_ok=True prevents an error if the folder already exists
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # initialize the document map and inverted index
+    doc_map = {}
     inverted_index = {}
 
-    build_partial_index(
-        inverted_index,
-        0,
-        {"comput": (2, 1), "scienc": (3, 1)}
-    )
+    # track how many partial indexes have been written
+    partial_count = 0
 
-    build_partial_index(
-        inverted_index,
-        1,
-        {"comput": (1, 0), "uci": (2, 1)}
-    )
+    # process each document
+    for doc_id, filepath in enumerate(json_files):
 
-    print(inverted_index)
+        # read the document and extract its URL
+        document = read_document(str(filepath))
+        url = urldefrag(document["url"]).url
 
-    write_partial_index(inverted_index, "test_partial.txt")
+        # map the document ID to its URL
+        doc_map[doc_id] = url
 
-    with open("test_partial.txt", "r", encoding="utf-8") as the_file:
-        print(the_file.read())
+        # parse the document to get its term frequencies
+        term_frequencies = parse_document(str(filepath))
+
+        # add the document's terms to the inverted index
+        build_partial_index(inverted_index, doc_id, term_frequencies)
+
+        # flush the inverted index after every batch
+        # since doc_id starts at 0, add 1 and then modulo with
+        # batch_size. When it equals 0 we have completed the batch
+        if (doc_id + 1) % batch_size == 0:
+
+            # create the filename for this partial index
+            partial_filepath = output_path / f"partial_{partial_count}.txt"
+
+            # write the partial index to disk
+            write_partial_index(inverted_index, str(partial_filepath))
+
+            # clrear the inverted index to free memory
+            inverted_index.clear()
+
+            # increment the number of partial indexes written
+            partial_count += 1
+
+    # write any remaining documents to a final partial index
+    if inverted_index:
+        partial_filepath = output_path / f"partial_{partial_count}.txt"
+        write_partial_index(inverted_index, str(partial_filepath))
+        inverted_index.clear()
+        partial_count += 1
+
+    # save the document map to a JSON file
+    doc_map_filepath = output_path / "doc_map.json"
+
+    with open(doc_map_filepath, "w", encoding="utf-8") as the_file:
+        json.dump(doc_map, the_file)
+
+if __name__ == "__main__":
+    build_index("developer/DEV", "test_output", batch_size=2)
