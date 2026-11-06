@@ -1,5 +1,6 @@
 from pathlib import Path
-from parser import parse_document
+from parser import parse_document, read_document
+from urllib.parse import urldefrag
 
 def get_json_files(dataset_path: str) -> list[Path]:
     """
@@ -20,10 +21,32 @@ def get_json_files(dataset_path: str) -> list[Path]:
     return json_files
 
 
+def build_document_map(json_files: list[Path]) -> dict[int, str]:
+    """
+    This function assigns each JSON document a unique integer ID and
+    returns a dictionary mapping document IDs to URLs.
+    """
+    # dictionary mapping document IDs to URLs
+    doc_map: dict[int, str] = {}
+
+    # loop through each JSON file and assign a doc ID
+    for doc_id, filepath in enumerate(json_files):
+        # read the JSON document
+        document = read_document(str(filepath))
+
+        # extract the URL and remove any fragments
+        url = urldefrag(document["url"]).url
+
+        # associate the document ID iwth its URL
+        doc_map[doc_id] = url
+
+    return doc_map
+
 if __name__ == "__main__":
     json_files = get_json_files("developer/DEV")
 
-    print("Total JSON files:", len(json_files))
+    # test with only five documents
+    doc_map = build_document_map(json_files[:5])
 
-    for filepath in json_files[:5]:
-        print(filepath)
+    for doc_id, url in doc_map.items():
+        print(doc_id, url)
